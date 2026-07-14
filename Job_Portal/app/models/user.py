@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, Boolean, DateTime, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, EmailField, NumberField
 from app.models.enums import RoleEnum, AccountStatusEnum, RegistrationStepEnum
 
 if TYPE_CHECKING:
@@ -26,8 +26,8 @@ def get_ist_now() -> datetime:
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(EmailField, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum))
 

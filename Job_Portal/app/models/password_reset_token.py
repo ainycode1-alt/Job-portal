@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, NumberField
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
     token_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     otp_code: Mapped[str | None] = mapped_column(String(10), nullable=True)

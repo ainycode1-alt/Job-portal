@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class UserResponse(BaseModel):
-    id: str
-    email: str
+    id: int
+    email: EmailStr
     role: str
     is_verified: bool
     created_at: datetime
@@ -17,8 +17,8 @@ class UserResponse(BaseModel):
 
 
 class UserProfileResponse(BaseModel):
-    id: str
-    email: str
+    id: int
+    email: EmailStr
     role: str
     is_verified: bool
     company_name: str | None = None

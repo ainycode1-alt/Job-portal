@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, DateTime, func, Boolean, Integer, Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, EmailField, NumberField
 from app.models.enums import OTPPurposeEnum
 
 if TYPE_CHECKING:
@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 class OTPVerification(Base):
     __tablename__ = "otp_verifications"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
-    email: Mapped[str] = mapped_column(String(255), index=True)  # denormalized, useful for lookup before login
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    email: Mapped[str] = mapped_column(EmailField, index=True)  # denormalized, useful for lookup before login
 
     otp_hash: Mapped[str] = mapped_column(String(255))
     purpose: Mapped[OTPPurposeEnum] = mapped_column(Enum(OTPPurposeEnum), default=OTPPurposeEnum.registration)

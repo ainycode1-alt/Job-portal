@@ -12,8 +12,12 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, user_id: str) -> User | None:
-        result = await self.db.execute(select(User).where(User.id == user_id))
+    async def get_by_id(self, user_id: int | str) -> User | None:
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
+            return None
+        result = await self.db.execute(select(User).where(User.id == uid))
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
@@ -31,14 +35,18 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def has_profile(self, user_id: str) -> bool:
+    async def has_profile(self, user_id: int | str) -> bool:
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
+            return False
         result = await self.db.execute(
-            select(ClientProfile).where(ClientProfile.user_id == user_id)
+            select(ClientProfile).where(ClientProfile.user_id == uid)
         )
         if result.scalar_one_or_none():
             return True
 
         result = await self.db.execute(
-            select(VendorProfile).where(VendorProfile.user_id == user_id)
+            select(VendorProfile).where(VendorProfile.user_id == uid)
         )
         return result.scalar_one_or_none() is not None

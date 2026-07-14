@@ -5,16 +5,16 @@ from datetime import datetime
 from sqlalchemy import String, Float, DateTime, ForeignKey, func, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, NumberField
 
 
 class AIScore(Base):
     """AI scoring with pgvector support for embeddings."""
     __tablename__ = "ai_scores"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
     # submission_id: Mapped[str] = mapped_column(ForeignKey("submissions.id"), unique=True)
-    submission_id: Mapped[str] = mapped_column(String(36), unique=True)  # Plain string until submissions table is defined
+    submission_id: Mapped[int] = mapped_column(NumberField, unique=True)  # Numeric ID until submissions table is defined
 
     skill_score: Mapped[float] = mapped_column(Float)
     experience_score: Mapped[float] = mapped_column(Float)

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, Text, Date, DateTime, JSON, Boolean, Numeric, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, RichTextField, NumberField
 from app.models.user import get_ist_now
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 class Job(Base):
     __tablename__ = "jobs"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    client_id: Mapped[str] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
 
     job_title: Mapped[str] = mapped_column(String(255))
     location: Mapped[str] = mapped_column(String(255))
@@ -45,7 +45,7 @@ class Job(Base):
     budget_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
 
     # Job Description
-    jd_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jd_summary: Mapped[str | None] = mapped_column(RichTextField, nullable=True)
 
     # Project Timeline
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)

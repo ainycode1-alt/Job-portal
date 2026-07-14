@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, Date, DateTime, Boolean, Enum, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, NumberField
 from app.models.enums import SubscriptionPlanEnum, SubscriptionStatusEnum
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
     plan: Mapped[SubscriptionPlanEnum] = mapped_column(Enum(SubscriptionPlanEnum))
     status: Mapped[SubscriptionStatusEnum] = mapped_column(

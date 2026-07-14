@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, Date, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, NumberField
 
 if TYPE_CHECKING:
     from app.models.candidate import Candidate
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 class CandidateWorkExperience(Base):
     __tablename__ = "candidate_work_experiences"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    candidate_id: Mapped[str] = mapped_column(ForeignKey("candidates.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"), index=True)
 
     company_name: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(255))
@@ -29,8 +29,8 @@ class CandidateWorkExperience(Base):
 class CandidateProjectExperience(Base):
     __tablename__ = "candidate_project_experiences"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    candidate_id: Mapped[str] = mapped_column(ForeignKey("candidates.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"), index=True)
 
     project_title: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(255))
@@ -44,8 +44,8 @@ class CandidateProjectExperience(Base):
 class CandidateEducation(Base):
     __tablename__ = "candidate_educations"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    candidate_id: Mapped[str] = mapped_column(ForeignKey("candidates.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"), index=True)
 
     degree: Mapped[str] = mapped_column(String(255))
     institute: Mapped[str] = mapped_column(String(255))

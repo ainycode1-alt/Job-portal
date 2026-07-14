@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, DateTime, JSON, ForeignKey, func, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, gen_uuid
+from app.models.base import Base, gen_uuid, URLField, NumberField
 from app.models.user import get_ist_now
 
 if TYPE_CHECKING:
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 class Candidate(Base):
     __tablename__ = "candidates"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
-    vendor_id: Mapped[str] = mapped_column(ForeignKey("vendor_profiles.id"), index=True)
+    id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
+    vendor_id: Mapped[int] = mapped_column(ForeignKey("vendor_profiles.id"), index=True)
 
     full_name: Mapped[str] = mapped_column(String(255))
     gender: Mapped[str] = mapped_column(String(20))
@@ -45,8 +45,8 @@ class Candidate(Base):
     certifications: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     # Social links
-    linkedin_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(URLField, nullable=True)
+    github_url: Mapped[str | None] = mapped_column(URLField, nullable=True)
 
     # Candidate Rate Details
     rate_currency: Mapped[str] = mapped_column(String(10), default="USD")

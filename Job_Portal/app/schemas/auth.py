@@ -99,7 +99,7 @@ class RegisterStep1Request(BaseModel):
 
 class RegisterStep1Response(BaseModel):
     message: str = "OTP sent to your email. Please verify to continue registration."
-    email: str
+    email: NormalizedEmail
     session_id: str
     otp_dev: str | None = None
 
@@ -113,7 +113,7 @@ class VerifyOTPRequest(BaseModel):
 
 class VerifyOTPResponse(BaseModel):
     message: str = "Email verified successfully. Please complete your profile."
-    email: str
+    email: NormalizedEmail
     temp_token: str | None = None
     session_id: str | None = None
     access_token: str | None = None
@@ -146,7 +146,7 @@ class CompleteRegistrationStep1Request(BaseModel):
     website_url: str = Field(..., min_length=1, max_length=255)
     company_email: NormalizedEmail
     poc_name: str = Field(..., min_length=1, max_length=255)
-    poc_phone: str = Field(..., min_length=1, max_length=20)
+    poc_phone: int = Field(...)
     poc_email: NormalizedEmail
 
 
@@ -175,8 +175,8 @@ class CompleteRegistrationStep2Request(BaseModel):
 
 class CompleteRegistrationResponse(BaseModel):
     message: str = "Registration completed successfully."
-    user_id: str
-    email: str
+    user_id: int
+    email: NormalizedEmail
     role: str
     access_token: str
     refresh_token: str
@@ -190,8 +190,8 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     message: str = "Login successful."
-    user_id: str
-    email: str
+    user_id: int
+    email: NormalizedEmail
     role: str
     is_verified: bool
     is_profile_complete: bool
