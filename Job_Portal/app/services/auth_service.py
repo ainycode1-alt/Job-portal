@@ -32,13 +32,55 @@ class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.user_repo = UserRepository(db)
-        self.otp_service = OTPService()
+        self.otp_service = OTPService(db)
 
     async def register_step1(self, email: str, password: str, role: str) -> dict[str, Any]:
         email = email.strip().lower()
         existing = await self.user_repo.get_by_email(email)
         if existing:
-            raise ConflictError("An account already exists with this email.")
+            # Check existing password for security
+            if not verify_password(password, existing.password_hash):
+                raise AuthenticationError("An account already exists with this email, but the password provided is incorrect.")
+            
+            # Check existing role
+            if existing.role.value == role:
+                if existing.registration_step == RegistrationStepEnum.completed:
+                    raise ConflictError("An account already exists with this email.")
+                else:
+                    # Continue onboarding: resend OTP and generate registration session
+                    session_id = str(uuid.uuid4())
+                    session_data = {
+                        "email": email,
+                        "password_hash": existing.password_hash,
+                        "role": role,
+                        "email_verified": False,
+                        "phone": None,
+                        "phone_verified": False
+                    }
+                    await self.otp_service.redis.setex(
+                        f"reg_session:{session_id}",
+                        3600,
+                        json.dumps(session_data)
+                    )
+                    otp_code = await self.otp_service.send_otp(email, purpose="registration")
+                    send_otp_email(email, otp_code, purpose="registration")
+                    
+                    res = {
+                        "email": email,
+                        "session_id": session_id,
+                        "message": "Continuing registration. OTP sent to your email."
+                    }
+                    if settings.ENVIRONMENT == "development":
+                        res["otp_dev"] = otp_code
+                    return res
+            else:
+                # Role is different
+                raise ConflictError(json.dumps({
+                    "error_code": "ROLE_MISMATCH",
+                    "message": f"This email is already registered as {existing.role.value.capitalize()}. Do you want to switch to {role.capitalize()}?",
+                    "existing_role": existing.role.value,
+                    "target_role": role
+                }))
 
         # Generate unique registration session ID
         session_id = str(uuid.uuid4())
@@ -59,20 +101,11 @@ class AuthService:
             json.dumps(session_data)
         )
 
-        # Generate and save Email OTP in Redis
-        otp_code = generate_otp(length=4)
-        otp_hash = hash_password(otp_code)
-        
-        # Save OTP hash and reset attempts in Redis
-        await self.otp_service.redis.setex(f"otp:registration:{email}", 600, otp_hash)
-        await self.otp_service.redis.setex(f"otp_attempts:registration:{email}", 600, "0")
+        # Generate and save Email OTP in PostgreSQL
+        otp_code = await self.otp_service.send_otp(email, purpose="registration")
 
         # Send OTP email
         send_otp_email(email, otp_code, purpose="registration")
-
-        # Save raw OTP in Redis for development testing (automated test compatibility)
-        if settings.ENVIRONMENT == "development":
-            await self.otp_service.redis.setex(f"test_otp:registration:{email}", 600, otp_code)
 
         res = {
             "email": email,
@@ -118,23 +151,9 @@ class AuthService:
         if session_data["email"] != email:
             raise ValidationError("Email mismatch for this registration session")
 
-        # Verify OTP code and attempts counter from Redis
-        otp_key = f"otp:registration:{email}"
-        attempts_key = f"otp_attempts:registration:{email}"
-
-        stored_hash = await self.otp_service.redis.get(otp_key)
-        attempts_raw = await self.otp_service.redis.get(attempts_key)
-
-        if not stored_hash:
-            raise ValidationError("Invalid or expired OTP")
-
-        attempts = int(attempts_raw) if attempts_raw else 0
-        if attempts >= 5:
-            raise ValidationError("Max verification attempts exceeded. Please request a new OTP.")
-
-        is_valid = verify_password(otp, stored_hash)
+        # Verify OTP code and attempts counter from PostgreSQL
+        is_valid = await self.otp_service.verify_otp(email, otp, purpose="registration")
         if not is_valid:
-            await self.otp_service.redis.incr(attempts_key)
             raise ValidationError("Invalid or expired OTP")
 
         # 1. Create and Save the User in PostgreSQL immediately
@@ -149,10 +168,9 @@ class AuthService:
         self.db.add(user)
         await self.db.flush()
 
-        # Delete Redis registration session and OTP keys
+        # Delete Redis registration session and database OTP keys
         await self.otp_service.redis.delete(session_key)
-        await self.otp_service.redis.delete(otp_key)
-        await self.otp_service.redis.delete(attempts_key)
+        await self.otp_service.delete_otp(email, purpose="registration")
 
         # Generate tokens
         access_token = create_access_token(data={"sub": user.id, "role": user.role.value})
@@ -440,6 +458,11 @@ class AuthService:
         raise AuthenticationError("Invalid refresh token")
 
     async def forgot_password(self, email: str) -> dict[str, Any]:
+        import secrets
+        from datetime import timedelta
+        from app.models.user import get_ist_now
+        from app.models.password_reset_token import PasswordResetToken
+
         user = await self.user_repo.get_by_email(email)
         if not user:
             return {"message": "If the email exists, a password reset OTP has been sent."}
@@ -447,9 +470,26 @@ class AuthService:
         otp = await self.otp_service.send_otp(email, purpose="password_reset")
         send_password_reset_email(email, otp)
 
+        # Generate unique token for reset
+        reset_token = secrets.token_urlsafe(32)
+        token_hash = hash_token(reset_token)
+
+        # Save password reset record in DB
+        expires_at = get_ist_now() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+        password_reset_token = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            otp_code=otp,
+            is_used=False,
+            expires_at=expires_at,
+        )
+        self.db.add(password_reset_token)
+        await self.db.flush()
+
         res = {"message": "If the email exists, a password reset OTP has been sent."}
         if settings.ENVIRONMENT == "development":
             res["otp_dev"] = otp
+            res["reset_token_dev"] = reset_token
         return res
 
     async def reset_password(self, email: str, otp: str, new_password: str) -> dict[str, Any]:
@@ -460,6 +500,25 @@ class AuthService:
         user = await self.user_repo.get_by_email(email)
         if not user:
             raise NotFoundError("User not found")
+
+        # Mark token as used in DB
+        from app.models.user import get_ist_now
+        from app.models.password_reset_token import PasswordResetToken
+        from sqlalchemy import and_
+
+        result = await self.db.execute(
+            select(PasswordResetToken).where(
+                and_(
+                    PasswordResetToken.user_id == user.id,
+                    PasswordResetToken.otp_code == otp,
+                    PasswordResetToken.is_used == False
+                )
+            ).order_by(PasswordResetToken.created_at.desc())
+        )
+        pw_reset_token = result.scalar_one_or_none()
+        if pw_reset_token:
+            pw_reset_token.is_used = True
+            pw_reset_token.used_at = get_ist_now()
 
         user.password_hash = hash_password(new_password)
 
@@ -477,3 +536,59 @@ class AuthService:
         await self.user_repo.update(user)
 
         return {"message": "Password reset successful"}
+
+    async def switch_role(self, email: str, password: str, role: str) -> dict[str, Any]:
+        email = email.strip().lower()
+        user = await self.user_repo.get_by_email(email)
+        if not user:
+            raise NotFoundError("User not found.")
+
+        # Verify password
+        if not verify_password(password, user.password_hash):
+            raise AuthenticationError("Invalid email or password.")
+
+        # Verify role is different
+        if user.role.value == role:
+            raise ValidationError(f"User is already registered with role {role}.")
+
+        # Switch role in DB
+        user.role = RoleEnum(role)
+        user.registration_step = RegistrationStepEnum.profile_pending
+        await self.user_repo.update(user)
+
+        # Delete old profile to prevent mismatching data
+        if role == "vendor":
+            from app.models.client_profile import ClientProfile
+            await self.db.execute(delete(ClientProfile).where(ClientProfile.user_id == user.id))
+        else:
+            from app.models.vendor_profile import VendorProfile
+            await self.db.execute(delete(VendorProfile).where(VendorProfile.user_id == user.id))
+
+        await self.db.flush()
+
+        # Generate new auth tokens for ongoing onboarding session
+        access_token = create_access_token(data={"sub": user.id, "role": user.role.value})
+        refresh_token_raw = create_refresh_token(data={"sub": user.id})
+
+        # Store new refresh token
+        from app.models.refresh_token import RefreshToken
+        token_hash = hash_token(refresh_token_raw)
+        from app.models.user import get_ist_now
+        db_refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            is_revoked=False,
+            expires_at=get_ist_now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        )
+        self.db.add(db_refresh_token)
+        await self.db.flush()
+
+        return {
+            "message": "Role switched successfully. Please complete your profile onboarding.",
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role.value,
+            "access_token": access_token,
+            "refresh_token": refresh_token_raw,
+            "token_type": "bearer"
+        }

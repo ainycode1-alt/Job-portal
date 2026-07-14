@@ -25,6 +25,7 @@ class OTPPurposeEnum(str, enum.Enum):
     registration = "registration"
     login = "login"
     resend = "resend"
+    password_reset = "password_reset"
 
 
 class SubscriptionPlanEnum(str, enum.Enum):

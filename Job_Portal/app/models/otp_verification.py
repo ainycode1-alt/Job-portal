@@ -17,7 +17,7 @@ class OTPVerification(Base):
     __tablename__ = "otp_verifications"
 
     id: Mapped[int] = mapped_column(NumberField, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     email: Mapped[str] = mapped_column(EmailField, index=True)  # denormalized, useful for lookup before login
 
     otp_hash: Mapped[str] = mapped_column(String(255))

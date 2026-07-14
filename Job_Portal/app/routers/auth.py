@@ -21,6 +21,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest, ForgotPasswordResponse,
     ResetPasswordRequest, ResetPasswordResponse,
     PhoneOTPRequest, VerifyPhoneOTPRequest,
+    SwitchRoleRequest, SwitchRoleResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -188,6 +189,24 @@ async def reset_password(
             email=request.email,
             otp=request.otp,
             new_password=request.new_password,
+        )
+        return result
+    except AppException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/switch-role", response_model=SwitchRoleResponse)
+async def switch_role(
+    request: SwitchRoleRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    try:
+        result = await auth_service.switch_role(
+            email=request.email,
+            password=request.password,
+            role=request.role,
         )
         return result
     except AppException as e:

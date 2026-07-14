@@ -249,3 +249,24 @@ class PhoneOTPRequest(BaseModel):
 class VerifyPhoneOTPRequest(BaseModel):
     phone_number: str = Field(..., min_length=10, max_length=20)
     otp: str = Field(..., min_length=4, max_length=6)
+
+
+class SwitchRoleRequest(BaseModel):
+    email: NormalizedEmail
+    password: str
+    role: Literal["client", "vendor"]
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+
+class SwitchRoleResponse(BaseModel):
+    message: str = "Role switched successfully. Please complete your profile onboarding."
+    user_id: int
+    email: NormalizedEmail
+    role: str
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"

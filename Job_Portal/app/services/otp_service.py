@@ -3,7 +3,10 @@ from __future__ import annotations
 import random
 import string
 import uuid
+from datetime import timedelta
 import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, delete
 
 from app.config import settings
 from app.core.otp import generate_otp
@@ -12,8 +15,9 @@ from app.tasks.notification_tasks import send_sms
 
 
 class OTPService:
-    def __init__(self):
+    def __init__(self, db: AsyncSession | None = None):
         self.redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        self.db = db
 
     async def _get_rate_limit_key(self, email: str, purpose: str) -> str:
         return f"otp_rate_limit:{purpose}:{email}"
@@ -42,9 +46,41 @@ class OTPService:
         otp = generate_otp(length=4)
         otp_hash = hash_password(otp)
 
-        key = await self._get_otp_key(email, purpose)
-        await self.redis.setex(key, settings.OTP_EXPIRE_MINUTES * 60, otp_hash)
-        
+        if self.db:
+            from app.models.enums import OTPPurposeEnum
+            from app.models.otp_verification import OTPVerification
+            from app.models.user import User, get_ist_now
+            
+            # Delete any existing OTPs for the same email and purpose
+            await self.db.execute(
+                delete(OTPVerification).where(
+                    and_(
+                        OTPVerification.email == email,
+                        OTPVerification.purpose == OTPPurposeEnum(purpose)
+                    )
+                )
+            )
+            
+            # Retrieve user if exists (e.g. for password resets)
+            result = await self.db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+            user_id = user.id if user else None
+            
+            expires_at = get_ist_now() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+            
+            otp_verification = OTPVerification(
+                user_id=user_id,
+                email=email,
+                otp_hash=otp_hash,
+                purpose=OTPPurposeEnum(purpose),
+                is_verified=False,
+                expires_at=expires_at,
+                attempts=0,
+                max_attempts=settings.OTP_MAX_ATTEMPTS
+            )
+            self.db.add(otp_verification)
+            await self.db.flush()
+
         # Store raw OTP in Redis for development testing
         if settings.ENVIRONMENT == "development":
             await self.redis.setex(f"test_otp:{purpose}:{email}", 600, otp)
@@ -54,21 +90,56 @@ class OTPService:
         return otp
 
     async def verify_otp(self, email: str, otp: str, purpose: str = "registration") -> bool:
-        key = await self._get_otp_key(email, purpose)
-        stored_hash = await self.redis.get(key)
-
-        if stored_hash is None:
-            return False
-
-        is_valid = verify_password(otp, stored_hash)
-        if is_valid:
-            await self.redis.delete(key)
-
-        return is_valid
+        if self.db:
+            from app.models.enums import OTPPurposeEnum
+            from app.models.otp_verification import OTPVerification
+            from app.models.user import get_ist_now
+            
+            stmt = select(OTPVerification).where(
+                and_(
+                    OTPVerification.email == email,
+                    OTPVerification.purpose == OTPPurposeEnum(purpose),
+                    OTPVerification.is_verified == False
+                )
+            ).order_by(OTPVerification.created_at.desc())
+            
+            result = await self.db.execute(stmt)
+            otp_verification = result.scalar_one_or_none()
+            
+            if otp_verification is None:
+                return False
+                
+            if otp_verification.expires_at < get_ist_now():
+                return False
+                
+            if otp_verification.attempts >= otp_verification.max_attempts:
+                return False
+                
+            is_valid = verify_password(otp, otp_verification.otp_hash)
+            if is_valid:
+                otp_verification.is_verified = True
+                await self.db.flush()
+                return True
+            else:
+                otp_verification.attempts += 1
+                await self.db.flush()
+                return False
+        return False
 
     async def delete_otp(self, email: str, purpose: str = "registration") -> None:
-        key = await self._get_otp_key(email, purpose)
-        await self.redis.delete(key)
+        if self.db:
+            from app.models.enums import OTPPurposeEnum
+            from app.models.otp_verification import OTPVerification
+            
+            await self.db.execute(
+                delete(OTPVerification).where(
+                    and_(
+                        OTPVerification.email == email,
+                        OTPVerification.purpose == OTPPurposeEnum(purpose)
+                    )
+                )
+            )
+            await self.db.flush()
 
     async def send_phone_otp(self, phone_number: str) -> str:
         # Simple rate limit key for phone number
