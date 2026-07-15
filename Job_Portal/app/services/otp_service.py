@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 import string
 import uuid
@@ -12,6 +13,9 @@ from app.config import settings
 from app.core.otp import generate_otp
 from app.core.security import hash_password, verify_password
 from app.tasks.notification_tasks import send_sms
+from app.models.enums import OTPPurposeEnum
+from app.models.otp_verification import OTPVerification
+from app.models.user import User, get_ist_now
 
 
 class OTPService:
@@ -47,10 +51,6 @@ class OTPService:
         otp_hash = hash_password(otp)
 
         if self.db:
-            from app.models.enums import OTPPurposeEnum
-            from app.models.otp_verification import OTPVerification
-            from app.models.user import User, get_ist_now
-            
             # Delete any existing OTPs for the same email and purpose
             await self.db.execute(
                 delete(OTPVerification).where(
@@ -91,10 +91,6 @@ class OTPService:
 
     async def verify_otp(self, email: str, otp: str, purpose: str = "registration") -> bool:
         if self.db:
-            from app.models.enums import OTPPurposeEnum
-            from app.models.otp_verification import OTPVerification
-            from app.models.user import get_ist_now
-            
             stmt = select(OTPVerification).where(
                 and_(
                     OTPVerification.email == email,
@@ -128,9 +124,6 @@ class OTPService:
 
     async def delete_otp(self, email: str, purpose: str = "registration") -> None:
         if self.db:
-            from app.models.enums import OTPPurposeEnum
-            from app.models.otp_verification import OTPVerification
-            
             await self.db.execute(
                 delete(OTPVerification).where(
                     and_(
@@ -183,7 +176,6 @@ class OTPService:
 
     async def save_pending_registration(self, email: str, password_hash: str, role: str) -> None:
         key = f"pending_registration:{email}"
-        import json
         data = json.dumps({"password_hash": password_hash, "role": role})
         await self.redis.setex(key, settings.OTP_EXPIRE_MINUTES * 60, data)
 
@@ -192,7 +184,6 @@ class OTPService:
         data = await self.redis.get(key)
         if not data:
             return None
-        import json
         return json.loads(data)
 
     async def delete_pending_registration(self, email: str) -> None:

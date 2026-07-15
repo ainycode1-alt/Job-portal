@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -16,12 +17,13 @@ from app.core.security import (
 )
 from app.core.otp import generate_otp
 from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError, ValidationError
-from app.models.user import User
+from app.models.user import User, get_ist_now
 from app.models.enums import RoleEnum, AccountStatusEnum, RegistrationStepEnum, OTPPurposeEnum
 from app.models.otp_verification import OTPVerification
 from app.models.client_profile import ClientProfile
 from app.models.vendor_profile import VendorProfile
 from app.models.refresh_token import RefreshToken
+from app.models.password_reset_token import PasswordResetToken
 from app.repositories.user_repository import UserRepository
 from app.services.otp_service import OTPService
 from app.services.email_service import send_otp_email, send_password_reset_email
@@ -458,11 +460,6 @@ class AuthService:
         raise AuthenticationError("Invalid refresh token")
 
     async def forgot_password(self, email: str) -> dict[str, Any]:
-        import secrets
-        from datetime import timedelta
-        from app.models.user import get_ist_now
-        from app.models.password_reset_token import PasswordResetToken
-
         user = await self.user_repo.get_by_email(email)
         if not user:
             return {"message": "If the email exists, a password reset OTP has been sent."}

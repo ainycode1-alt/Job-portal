@@ -3,11 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, JSON, ForeignKey, func, Numeric
+from sqlalchemy import String, DateTime, JSON, ForeignKey, func, Numeric, Enum
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, gen_uuid, URLField, NumberField
 from app.models.user import get_ist_now
+from app.models.enums import LocationTypeEnum, EngagementTypeEnum, AvailabilityEnum
 
 if TYPE_CHECKING:
     from app.models.vendor_profile import VendorProfile
@@ -30,9 +32,9 @@ class Candidate(Base):
     total_experience: Mapped[float] = mapped_column(Numeric(4, 1))  # e.g. 10.5 years
 
     # Work Preferences
-    deployment_type: Mapped[str] = mapped_column(String(50))  # Onsite / Hybrid / Remote
-    availability: Mapped[str] = mapped_column(String(50))  # Immediate / Notice period
-    engagement_types: Mapped[list] = mapped_column(JSON)  # e.g., ["Full-time", "C2C"]
+    deployment_type: Mapped[LocationTypeEnum] = mapped_column(Enum(LocationTypeEnum))
+    availability: Mapped[AvailabilityEnum] = mapped_column(Enum(AvailabilityEnum))
+    engagement_types: Mapped[list[EngagementTypeEnum]] = mapped_column(ARRAY(Enum(EngagementTypeEnum, name='engagementtypeenum')))
 
     # Skills
     primary_skills: Mapped[list] = mapped_column(JSON)  # List of core technical skills

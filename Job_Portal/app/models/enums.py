@@ -42,3 +42,20 @@ class SubscriptionStatusEnum(str, enum.Enum):
 class DocumentTypeEnum(str, enum.Enum):
     jd = "jd"
     cv = "cv"
+
+
+class LocationTypeEnum(str, enum.Enum):
+    onsite = "onsite"
+    hybrid = "hybrid"
+    remote = "remote"
+
+
+class EngagementTypeEnum(str, enum.Enum):
+    full_time = "full_time"
+    c2c = "c2c"
+    c2h = "c2h"
+
+
+class AvailabilityEnum(str, enum.Enum):
+    immediate = "immediate"
+    notice_period = "notice_period"

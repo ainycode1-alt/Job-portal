@@ -5,16 +5,26 @@ import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.database import init_pgvector
 from app.middleware.cors import setup_cors
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.routers import auth
+
+import os
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Ensure logs directory exists and add file logging handler
+os.makedirs("logs", exist_ok=True)
+file_handler = logging.FileHandler("logs/fastapi.log", encoding="utf-8")
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.getLogger().addHandler(file_handler)
 
 
 @asynccontextmanager
@@ -36,6 +46,9 @@ app = FastAPI(
 
 setup_cors(app)
 app.add_middleware(LoggingMiddleware)
+
+# Expose metrics at /metrics for Prometheus & Grafana
+Instrumentator().instrument(app).expose(app)
 
 app.include_router(auth.router)
 

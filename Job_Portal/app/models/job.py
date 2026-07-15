@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Integer, Text, Date, DateTime, JSON, Boolean, Numeric, ForeignKey, func
+from sqlalchemy import String, Integer, Text, Date, DateTime, JSON, Boolean, Numeric, ForeignKey, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, gen_uuid, RichTextField, NumberField
 from app.models.user import get_ist_now
+from app.models.enums import LocationTypeEnum, EngagementTypeEnum
 
 if TYPE_CHECKING:
     from app.models.client_profile import ClientProfile
@@ -21,7 +22,7 @@ class Job(Base):
 
     job_title: Mapped[str] = mapped_column(String(255))
     location: Mapped[str] = mapped_column(String(255))
-    location_type: Mapped[str] = mapped_column(String(50))  # Onsite / Hybrid / Remote
+    location_type: Mapped[LocationTypeEnum] = mapped_column(Enum(LocationTypeEnum))
     skills: Mapped[list] = mapped_column(JSON)  # List of required skills
     shift: Mapped[str] = mapped_column(String(50))  # IST / UST / PST / any
 
@@ -30,7 +31,7 @@ class Job(Base):
     positions: Mapped[int] = mapped_column(Integer, default=1)
 
     # Engagement Type
-    engagement_type: Mapped[str] = mapped_column(String(50))  # Full Time / C2C / C2H
+    engagement_type: Mapped[EngagementTypeEnum] = mapped_column(Enum(EngagementTypeEnum))
 
     # Qualification requirements
     experience: Mapped[str] = mapped_column(String(255))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, exists
 
 from app.models.user import User
 from app.models.client_profile import ClientProfile
@@ -40,13 +40,11 @@ class UserRepository:
             uid = int(user_id)
         except (ValueError, TypeError):
             return False
-        result = await self.db.execute(
-            select(ClientProfile).where(ClientProfile.user_id == uid)
-        )
-        if result.scalar_one_or_none():
+
+        # Use exists subquery to optimize performance by avoiding full row load and instantiation
+        client_exists = await self.db.execute(select(exists().where(ClientProfile.user_id == uid)))
+        if client_exists.scalar():
             return True
 
-        result = await self.db.execute(
-            select(VendorProfile).where(VendorProfile.user_id == uid)
-        )
-        return result.scalar_one_or_none() is not None
+        vendor_exists = await self.db.execute(select(exists().where(VendorProfile.user_id == uid)))
+        return bool(vendor_exists.scalar())
