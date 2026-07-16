@@ -51,7 +51,6 @@ class LocationTypeEnum(str, enum.Enum):
 
 
 class EngagementTypeEnum(str, enum.Enum):
-    full_time = "full_time"
     c2c = "c2c"
     c2h = "c2h"
 

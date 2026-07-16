@@ -20,9 +20,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Ensure logs directory exists and add file logging handler
+# Ensure logs directory exists and add rotating file logging handler
+from logging.handlers import RotatingFileHandler
+
 os.makedirs("logs", exist_ok=True)
-file_handler = logging.FileHandler("logs/fastapi.log", encoding="utf-8")
+file_handler = RotatingFileHandler(
+    "logs/fastapi.log",
+    maxBytes=10 * 1024 * 1024,  # 10 MB per file limit
+    backupCount=5,              # Keep at most 5 backup files (50 MB total limit)
+    encoding="utf-8"
+)
 file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 logging.getLogger().addHandler(file_handler)
 
