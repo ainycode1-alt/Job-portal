@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, gen_uuid, RichTextField, NumberField
 from app.models.user import get_ist_now
-from app.models.enums import LocationTypeEnum, EngagementTypeEnum
+from app.models.enums import LocationTypeEnum, EngagementTypeEnum, BudgetTypeEnum
 
 if TYPE_CHECKING:
     from app.models.client_profile import ClientProfile
@@ -41,7 +41,7 @@ class Job(Base):
 
     # Budget Information
     budget_currency: Mapped[str] = mapped_column(String(10), default="USD")
-    budget_type: Mapped[str] = mapped_column(String(50))  # Hourly / Monthly / Yearly
+    budget_type: Mapped[BudgetTypeEnum] = mapped_column(Enum(BudgetTypeEnum))
     budget_min: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     budget_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
 

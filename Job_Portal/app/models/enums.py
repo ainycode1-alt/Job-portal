@@ -58,3 +58,9 @@ class EngagementTypeEnum(str, enum.Enum):
 class AvailabilityEnum(str, enum.Enum):
     immediate = "immediate"
     notice_period = "notice_period"
+
+
+class BudgetTypeEnum(str, enum.Enum):
+    hourly = "hourly"
+    monthly = "monthly"
+    daywise = "daywise"
